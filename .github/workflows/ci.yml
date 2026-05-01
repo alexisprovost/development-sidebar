@@ -47,7 +47,13 @@ jobs:
             $out = \DevelopmentSidebar\render(new \DevelopmentSidebar\Config(platform: "gcp"));
             if (!str_contains($out, "v1.2.3")) { fwrite(STDERR, "missing task version\n"); exit(1); }
             if (!str_contains($out, "devsidebar-env-stg")) { fwrite(STDERR, "missing env class\n"); exit(1); }
-            if (!str_contains($out, "GCP")) { fwrite(STDERR, "platform not rendered\n"); exit(1); }
+            // Each platform letter is rendered as its own <span class="devsidebar-letter">.
+            foreach (["G", "C", "P"] as $c) {
+                if (!preg_match("~devsidebar-letter[^>]*>" . preg_quote($c, "~") . "<~", $out)) {
+                    fwrite(STDERR, "letter $c not rendered\n");
+                    exit(1);
+                }
+            }
             $out2 = \DevelopmentSidebar\render(["platform" => "gcp"]);
             if ($out !== $out2) { fwrite(STDERR, "Config object and equivalent array must produce identical output\n"); exit(1); }
             echo "smoke ok\n";
@@ -66,8 +72,74 @@ jobs:
             $body = $m[1] ?? "";
             if (preg_match("~</\s*script~i", $body)) { fwrite(STDERR, "premature </script> in script body\n"); exit(1); }
             if (!str_contains($body, "\\u003C")) { fwrite(STDERR, "task version not hex-escaped in JS\n"); exit(1); }
-            if (preg_match("~data-tooltip=\"[^\"]*<~", $out)) { fwrite(STDERR, "raw < inside data-tooltip attr\n"); exit(1); }
+            // No live event handler should render anywhere in the document.
+            if (preg_match("~<[a-zA-Z][^>]*\son[a-z]+\s*=~i", $out)) { fwrite(STDERR, "live event handler in output\n"); exit(1); }
             echo "xss ok\n";
+          '
+
+      - name: Hide on prod by default
+        run: |
+          php -r '
+            require "sidebar.php";
+            $_SERVER["HTTP_HOST"] = "example.com";
+            putenv("EnvType=prod");
+            if (\DevelopmentSidebar\render() !== "") { fwrite(STDERR, "prod should be hidden by default\n"); exit(1); }
+            putenv("EnvType=production");
+            if (\DevelopmentSidebar\render() !== "") { fwrite(STDERR, "production should be hidden by default\n"); exit(1); }
+            echo "hide-on-prod ok\n";
+          '
+
+      - name: Version fallback through CI env vars
+        env:
+          GITHUB_SHA: abc123def456789012345678901234567890ffff
+          EnvType: stg
+        run: |
+          php -r '
+            require "sidebar.php";
+            $_SERVER["HTTP_HOST"] = "example.com";
+            $out = \DevelopmentSidebar\render();
+            if (!str_contains($out, "abc123def456")) { fwrite(STDERR, "GITHUB_SHA short form missing\n"); exit(1); }
+            echo "version-fallback ok\n";
+          '
+
+      - name: AWS region row + custom extra row
+        env:
+          EnvType: stg
+          AWS_REGION: us-east-1
+        run: |
+          php -r '
+            require "sidebar.php";
+            $_SERVER["HTTP_HOST"] = "example.com";
+            $out = \DevelopmentSidebar\render(new \DevelopmentSidebar\Config(extra: ["Branch" => "main"]));
+            if (!str_contains($out, "us-east-1")) { fwrite(STDERR, "AWS_REGION row missing\n"); exit(1); }
+            if (!str_contains($out, "Branch")) { fwrite(STDERR, "extra row missing\n"); exit(1); }
+            echo "rows ok\n";
+          '
+
+      - name: Build URL link
+        env:
+          EnvType: stg
+          BUILD_URL: https://ci.example.com/run/42
+        run: |
+          php -r '
+            require "sidebar.php";
+            $_SERVER["HTTP_HOST"] = "example.com";
+            $out = \DevelopmentSidebar\render();
+            if (!str_contains($out, "ci.example.com/run/42")) { fwrite(STDERR, "build URL missing\n"); exit(1); }
+            if (!str_contains($out, "target=\"_blank\"")) { fwrite(STDERR, "build link not target=_blank\n"); exit(1); }
+            echo "build-url ok\n";
+          '
+
+      - name: Suppression toggle (?devsidebar=off)
+        env:
+          EnvType: stg
+        run: |
+          php -r '
+            require "sidebar.php";
+            $_SERVER["HTTP_HOST"] = "example.com";
+            $_GET["devsidebar"] = "off";
+            if (\DevelopmentSidebar\render() !== "") { fwrite(STDERR, "?devsidebar=off should suppress\n"); exit(1); }
+            echo "toggle ok\n";
           '
 
       - name: OKLCH hash colors are deterministic
@@ -124,6 +196,7 @@ jobs:
             $out = ob_get_clean();
             if (!str_contains($out, "v9.9.9")) { fwrite(STDERR, "bundled missing version\n"); exit(1); }
             if (!str_contains($out, "devsidebar-env-dev")) { fwrite(STDERR, "bundled missing env class\n"); exit(1); }
+            if (!str_contains($out, "devsidebar-letter")) { fwrite(STDERR, "bundled missing letter spans\n"); exit(1); }
             echo "bundle ok\n";
           '
       - uses: actions/upload-artifact@v7
