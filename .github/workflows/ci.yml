@@ -95,14 +95,14 @@ jobs:
 
       - name: Version fallback through CI env vars
         env:
-          GITHUB_SHA: abc123def456789012345678901234567890ffff
+          IMAGE_TAG: 'sha-abc123:42'
           EnvType: stg
         run: |
           php -r '
             require "sidebar.php";
             $_SERVER["HTTP_HOST"] = "example.com";
             $out = \DevelopmentSidebar\render();
-            if (!str_contains($out, "abc123def456")) { fwrite(STDERR, "GITHUB_SHA short form missing\n"); exit(1); }
+            if (!str_contains($out, "sha-abc123:42")) { fwrite(STDERR, "IMAGE_TAG fallback missing\n"); exit(1); }
             echo "version-fallback ok\n";
           '
 
