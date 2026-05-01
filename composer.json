@@ -1,25 +1,17 @@
 {
     "name": "alexisprovost/development-sidebar",
-    "description": "A drop-in PHP sidebar that displays environment info (env, platform, host, task version) on dev / staging / infra deployments. Hidden in prod by default.",
+    "description": "Tiny single-file PHP sidebar that shows environment metadata on dev / staging / infra deployments. Hidden in prod by default.",
     "type": "library",
     "license": "MIT",
-    "keywords": ["sidebar", "devops", "environment", "staging", "debug", "infrastructure"],
+    "keywords": ["sidebar", "devops", "environment", "staging", "debug"],
     "authors": [
-        {
-            "name": "Alexis Provost",
-            "homepage": "https://github.com/alexisprovost"
-        }
+        { "name": "Alexis Provost", "homepage": "https://github.com/alexisprovost" }
     ],
     "require": {
         "php": ">=8.2"
     },
     "autoload": {
-        "psr-4": {
-            "DevelopmentSidebar\\": "src/"
-        }
-    },
-    "config": {
-        "sort-packages": true
+        "files": ["sidebar.php"]
     },
     "minimum-stability": "stable",
     "prefer-stable": true

@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+    branches: [main, v6]
+    tags: ['v*']
+  pull_request:
+
+jobs:
+  test:
+    name: PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+
+      - name: Lint
+        run: |
+          php -l sidebar.php
+          php -l index.php
+          php -l bin/build.php
+
+      - name: Smoke render
+        env:
+          EnvType: stg
+          TASK_VERSION: v1.2.3
+        run: |
+          php -r '
+            require "sidebar.php";
+            $_SERVER["HTTP_HOST"] = "example.com";
+            $out = \DevelopmentSidebar\render();
+            if (!str_contains($out, "v1.2.3")) { fwrite(STDERR, "missing task version\n"); exit(1); }
+            if (!str_contains($out, "devsidebar-env-stg")) { fwrite(STDERR, "missing env class\n"); exit(1); }
+            if (!str_contains($out, "var taskVersion=\"v1.2.3\"")) { fwrite(STDERR, "task version not properly JS-escaped\n"); exit(1); }
+            echo "smoke ok\n";
+          '
+
+      - name: XSS probe
+        env:
+          EnvType: 'evil"><script>alert(1)</script>'
+          TASK_VERSION: '</script><img src=x onerror=alert(1)>"; alert(1); var x="'
+        run: |
+          php -r '
+            require "sidebar.php";
+            $_SERVER["HTTP_HOST"] = "evil.com";
+            $out = \DevelopmentSidebar\render(["force_show" => true]);
+            preg_match("~<script[^>]*>(.*?)</script>~s", $out, $m);
+            $body = $m[1] ?? "";
+            if (preg_match("~</\s*script~i", $body)) { fwrite(STDERR, "premature </script> in script body\n"); exit(1); }
+            if (!str_contains($body, "\\u003C")) { fwrite(STDERR, "task version not hex-escaped in JS\n"); exit(1); }
+            if (preg_match("~data-tooltip=\"[^\"]*<~", $out)) { fwrite(STDERR, "raw < inside data-tooltip attr\n"); exit(1); }
+            echo "xss ok\n";
+          '
+
+      - name: Color hash determinism
+        run: |
+          php -r '
+            require "sidebar.php";
+            $_SERVER["HTTP_HOST"] = "example.com";
+            putenv("EnvType=canary");
+            $a = \DevelopmentSidebar\render();
+            $b = \DevelopmentSidebar\render();
+            if ($a !== $b) { fwrite(STDERR, "render not deterministic\n"); exit(1); }
+            if (!preg_match("~--devsidebar-color:hsl\(\d+ 70% 42%\)~", $a)) { fwrite(STDERR, "no hash color emitted\n"); exit(1); }
+            echo "hash ok\n";
+          '
+
+  build:
+    name: Build single-file artifact
+    needs: test
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+      - name: Build
+        run: |
+          php bin/build.php
+          php -l dist/sidebar.php
+      - name: Smoke test bundled artifact
+        env:
+          EnvType: dev
+          TASK_VERSION: v9.9.9
+        run: |
+          php -r '
+            $_SERVER["HTTP_HOST"] = "example.com";
+            ob_start();
+            include "dist/sidebar.php";
+            $out = ob_get_clean();
+            if (!str_contains($out, "v9.9.9")) { fwrite(STDERR, "bundled missing version\n"); exit(1); }
+            if (!str_contains($out, "devsidebar-env-dev")) { fwrite(STDERR, "bundled missing env class\n"); exit(1); }
+            echo "bundle ok\n";
+          '
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/sidebar.php
+          generate_release_notes: true
