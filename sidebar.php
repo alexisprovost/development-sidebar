@@ -6,75 +6,89 @@ namespace DevelopmentSidebar;
 
 const VERSION = '6.0.0';
 
-const DEFAULTS = [
-    'platform'         => 'aws',
-    'right_side'       => true,
-    'instance_count'   => 1,
-    'show_instance'    => true,
-    'show_php_version' => true,
-    'show_version'     => true,
-    'force_show'       => false,
-    'task_version'     => null,
-    'environment'      => null,
-    'hostname'         => null,
-    'color'            => null,
-    'colors'           => [
-        'local'      => '#2ecc40',
-        'dev'        => '#ff4136',
-        'stg'        => '#ff851b',
-        'staging'    => '#ff851b',
-        'infra'      => '#0074d9',
-        'prod'       => '#111111',
-        'production' => '#111111',
-    ],
-    'local_hosts'      => ['localhost', '127.0.0.1', '::1'],
-    'hide_when'        => ['prod', 'production'],
-    'csp_nonce'        => null,
-    'use_google_fonts' => false,
-];
-
-function display(array $options = []): void
+/**
+ * Configuration value object.
+ *
+ * The recommended way to configure the sidebar (PHP 2026 idiom): a final
+ * readonly class with named-argument construction. IDE autocompletes the
+ * parameter names, the type checker catches typos, and instances are
+ * immutable.
+ *
+ * Pass-through arrays are also accepted by display() / render() for
+ * brevity and for `config.php` files that prefer a plain array.
+ */
+final readonly class Config
 {
-    echo render($options);
+    /**
+     * @param array<string, string> $colors      Per-env color overrides keyed by lowercase env name.
+     * @param list<string>          $localHosts  Hosts that force the env to `local`.
+     */
+    public function __construct(
+        public string $platform = 'aws',
+        public bool $rightSide = true,
+        public int $instanceCount = 1,
+        public bool $showInstance = true,
+        public bool $showPhpVersion = true,
+        public bool $showVersion = true,
+        public ?string $taskVersion = null,
+        public ?string $environment = null,
+        public ?string $hostname = null,
+        public ?string $color = null,
+        public ?string $textColor = null,
+        public array $colors = [
+            'local'      => '#2ecc40',
+            'dev'        => '#ff4136',
+            'stg'        => '#ff851b',
+            'staging'    => '#ff851b',
+            'infra'      => '#0074d9',
+            'prod'       => '#111111',
+            'production' => '#111111',
+        ],
+        public array $localHosts = ['localhost', '127.0.0.1', '::1'],
+        public ?string $cspNonce = null,
+        public bool $useGoogleFonts = false,
+    ) {
+    }
 }
 
-function render(array $options = []): string
+function display(Config|array|null $config = null): void
 {
-    $opt = _resolve_options($options);
-    $env = _resolve_environment($opt);
-    if (!_should_display($env, $opt)) {
-        return '';
-    }
+    echo render($config);
+}
 
-    $color    = _color_for($env, $opt['color'], (array) $opt['colors']);
-    $task     = (string) ($opt['task_version'] ?? 'No version was specified in the TASK_VERSION env variable');
-    $hostname = _resolve_hostname($opt);
-    $tooltip  = _build_tooltip($task, $hostname, $opt);
+function render(Config|array|null $config = null): string
+{
+    $cfg      = _resolve_config($config);
+    $env      = _resolve_environment($cfg);
+    $task     = $cfg->taskVersion ?? 'No version was specified in the TASK_VERSION env variable';
+    $hostname = _resolve_hostname($cfg);
+    [$bg, $fg] = _resolve_color_pair($env, $cfg);
+    $tooltip  = _build_tooltip($task, $hostname, $cfg);
 
     $slug       = _slug($env);
-    $env_class  = 'devsidebar-env-' . $slug;
-    $right      = $opt['right_side'] ? ' devsidebar-right' : '';
-    $right_text = $opt['right_side'] ? ' devsidebar-text-right' : '';
-    $tip_pos    = $opt['right_side'] ? 'left' : 'right';
-    $nonce      = $opt['csp_nonce'] !== null
-        ? ' nonce="' . _attr((string) $opt['csp_nonce']) . '"'
+    $envClass   = 'devsidebar-env-' . $slug;
+    $right      = $cfg->rightSide ? ' devsidebar-right' : '';
+    $rightText  = $cfg->rightSide ? ' devsidebar-text-right' : '';
+    $tipPos     = $cfg->rightSide ? 'left' : 'right';
+    $nonce      = $cfg->cspNonce !== null
+        ? ' nonce="' . _attr($cfg->cspNonce) . '"'
         : '';
-    $fonts_link = $opt['use_google_fonts']
+    $fontsLink = $cfg->useGoogleFonts
         ? '<link href="https://fonts.googleapis.com/css?family=Poppins" rel="stylesheet">'
         : '';
 
     ob_start();
     ?>
 <style<?= $nonce ?>>
-.<?= _attr($env_class) ?>{--devsidebar-color:<?= _attr($color) ?>}
+.<?= _attr($envClass) ?>{--devsidebar-bg:<?= _attr($bg) ?>;--devsidebar-fg:<?= _attr($fg) ?>}
 <?= CSS ?>
-</style><?= $fonts_link ?>
-<div class="devsidebar-bar <?= _attr($env_class) ?><?= $right ?>">
-    <h3 class="devsidebar-text devsidebar-noselect<?= $right_text ?>">
+</style><?= $fontsLink ?>
+<div class="devsidebar-bar <?= _attr($envClass) ?><?= $right ?>">
+    <h3 class="devsidebar-text devsidebar-noselect<?= $rightText ?>">
         <span class="devsidebar-holder">
             <span><?= _html(strtoupper($env)) ?></span>
             <span>—</span>
-            <span><?= _html(strtoupper((string) $opt['platform'])) ?></span>
+            <span><?= _html(strtoupper($cfg->platform)) ?></span>
             <span class="devsidebar-spacer">-</span>
         </span>
         <span class="devsidebar-info"
@@ -82,7 +96,7 @@ function render(array $options = []): string
               role="button"
               aria-label="Sidebar info"
               data-tooltip="<?= _attr($tooltip) ?>"
-              data-tooltip-pos="<?= _attr($tip_pos) ?>">
+              data-tooltip-pos="<?= _attr($tipPos) ?>">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-hidden="true" focusable="false">
                 <path d="M256 90c44.3 0 86 17.3 117.4 48.6C404.7 170 422 211.7 422 256s-17.3 86-48.6 117.4C342 404.7 300.3 422 256 422s-86-17.3-117.4-48.6C107.3 342 90 300.3 90 256s17.3-86 48.6-117.4C170 107.3 211.7 90 256 90m0-42C141.1 48 48 141.1 48 256s93.1 208 208 208 208-93.1 208-208S370.9 48 256 48z"/>
                 <path d="M277 360h-42V235h42v125zm0-166h-42v-42h42v42z"/>
@@ -95,62 +109,56 @@ function render(array $options = []): string
     return (string) ob_get_clean();
 }
 
-function _resolve_options(array $options): array
+function _resolve_config(Config|array|null $config): Config
 {
-    $env_defaults = [];
+    if ($config instanceof Config) {
+        return $config;
+    }
+
+    $envDefaults = [];
     $task = getenv('TASK_VERSION');
     if (is_string($task) && $task !== '') {
-        $env_defaults['task_version'] = $task;
+        $envDefaults['taskVersion'] = $task;
     }
     $env = getenv('EnvType');
     if (!is_string($env) || $env === '') {
         $env = getenv('ENV_TYPE');
     }
     if (is_string($env) && $env !== '') {
-        $env_defaults['environment'] = $env;
+        $envDefaults['environment'] = $env;
     }
-    return $options + $env_defaults + DEFAULTS;
+
+    $merged = ($config ?? []) + $envDefaults;
+    return new Config(...$merged);
 }
 
-function _resolve_environment(array $opt): string
+function _resolve_environment(Config $cfg): string
 {
     $host = strtolower((string) ($_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? ''));
-    $local = array_map('strtolower', (array) ($opt['local_hosts'] ?? []));
+    $local = array_map('strtolower', $cfg->localHosts);
     if ($host !== '' && in_array($host, $local, true)) {
         return 'local';
     }
-    if (strtolower((string) ($opt['task_version'] ?? '')) === 'local') {
+    if (strtolower((string) ($cfg->taskVersion ?? '')) === 'local') {
         return 'local';
     }
-    $env = trim(strtolower((string) ($opt['environment'] ?? '')));
+    $env = trim(strtolower((string) ($cfg->environment ?? '')));
     return $env !== '' ? $env : 'unknown';
 }
 
-function _resolve_hostname(array $opt): string
+function _resolve_hostname(Config $cfg): string
 {
-    $h = $opt['hostname'] ?? gethostname();
+    $h = $cfg->hostname ?? gethostname();
     if ($h === false || $h === null || $h === '') {
         $h = 'unknown';
     }
-    if ($opt['show_instance']) {
-        $h .= ' ( ' . (int) $opt['instance_count'] . ' )';
+    if ($cfg->showInstance) {
+        $h .= ' ( ' . $cfg->instanceCount . ' )';
     }
     return (string) $h;
 }
 
-function _should_display(string $env, array $opt): bool
-{
-    if ($opt['force_show']) {
-        return true;
-    }
-    if (strtolower((string) (getenv('WP_DEBUG') ?: '')) === 'true') {
-        return true;
-    }
-    $hide = array_map('strtolower', (array) ($opt['hide_when'] ?? []));
-    return !in_array(strtolower($env), $hide, true);
-}
-
-function _build_tooltip(string $task, string $hostname, array $opt): string
+function _build_tooltip(string $task, string $hostname, Config $cfg): string
 {
     $lines = [
         'Informations',
@@ -159,33 +167,97 @@ function _build_tooltip(string $task, string $hostname, array $opt): string
         '',
         'Hostname: ' . $hostname,
     ];
-    if ($opt['show_php_version']) {
+    if ($cfg->showPhpVersion) {
         $lines[] = '';
         $lines[] = 'PHP Version: ' . PHP_VERSION;
     }
-    if ($opt['show_version']) {
+    if ($cfg->showVersion) {
         $lines[] = '';
         $lines[] = 'Sidebar Version: ' . VERSION;
     }
     return implode("\n", $lines);
 }
 
-function _color_for(string $env, ?string $explicit, array $colors): string
+/**
+ * @return array{0: string, 1: string} [background, text]
+ */
+function _resolve_color_pair(string $env, Config $cfg): array
 {
-    if ($explicit !== null && $explicit !== '') {
-        return _safe_color($explicit);
+    if ($cfg->color !== null && $cfg->color !== '') {
+        $bg = _safe_color($cfg->color);
+        $fg = $cfg->textColor !== null ? _safe_color($cfg->textColor) : _contrast_text($bg);
+        return [$bg, $fg];
     }
     $key = strtolower($env);
-    if (isset($colors[$key]) && is_string($colors[$key])) {
-        return _safe_color($colors[$key]);
+    if (isset($cfg->colors[$key]) && is_string($cfg->colors[$key])) {
+        $bg = _safe_color($cfg->colors[$key]);
+        $fg = $cfg->textColor !== null ? _safe_color($cfg->textColor) : _contrast_text($bg);
+        return [$bg, $fg];
     }
-    return _hash_color($key);
+    $bg = _hash_color($key);
+    // Hash colors are produced at OKLCH lightness 0.58 — always paired with white text.
+    $fg = $cfg->textColor !== null ? _safe_color($cfg->textColor) : '#fff';
+    return [$bg, $fg];
 }
 
+/**
+ * Deterministic, perceptually uniform color from any env name.
+ *
+ * Uses OKLCH (CSS Color Level 4, supported by every browser since 2023). At
+ * fixed lightness 0.58 and chroma 0.16, all hues look equally bright and
+ * equally vivid — none of the muddy yellows or washed-out blues you get
+ * from HSL.
+ */
 function _hash_color(string $name): string
 {
-    $hue = hexdec(substr(md5($name), 0, 4)) % 360;
-    return sprintf('hsl(%d 70%% 42%%)', $hue);
+    $hue = hexdec(substr(md5($name), 0, 6)) % 360;
+    return sprintf('oklch(0.58 0.16 %d)', $hue);
+}
+
+/**
+ * Pick a foreground color (#fff or #111) based on WCAG relative luminance
+ * of the background. Falls back to white for non-hex inputs.
+ */
+function _contrast_text(string $color): string
+{
+    $rgb = _parse_hex($color);
+    if ($rgb === null) {
+        return '#fff';
+    }
+    [$r, $g, $b] = $rgb;
+    return _wcag_luminance($r, $g, $b) > 0.55 ? '#111' : '#fff';
+}
+
+/**
+ * @return array{0: int, 1: int, 2: int}|null
+ */
+function _parse_hex(string $color): ?array
+{
+    if (preg_match('/^#([0-9a-fA-F]{3})$/', $color, $m)) {
+        $h = $m[1];
+        return [
+            hexdec($h[0] . $h[0]),
+            hexdec($h[1] . $h[1]),
+            hexdec($h[2] . $h[2]),
+        ];
+    }
+    if (preg_match('/^#([0-9a-fA-F]{6})$/', $color, $m)) {
+        return [
+            hexdec(substr($m[1], 0, 2)),
+            hexdec(substr($m[1], 2, 2)),
+            hexdec(substr($m[1], 4, 2)),
+        ];
+    }
+    return null;
+}
+
+function _wcag_luminance(int $r, int $g, int $b): float
+{
+    $channel = static function (int $c): float {
+        $v = $c / 255.0;
+        return $v <= 0.04045 ? $v / 12.92 : (($v + 0.055) / 1.055) ** 2.4;
+    };
+    return 0.2126 * $channel($r) + 0.7152 * $channel($g) + 0.0722 * $channel($b);
 }
 
 function _safe_color(string $color): string
@@ -194,7 +266,7 @@ function _safe_color(string $color): string
     if (preg_match('/^#[0-9a-fA-F]{3,8}$/', $color)) {
         return $color;
     }
-    if (preg_match('/^(?:hsla?|rgba?)\(\s*[0-9.,%\s\/deg]+\)$/i', $color)) {
+    if (preg_match('/^(?:hsla?|rgba?|oklch|oklab|lab|lch|hwb|color)\([^()]{1,200}\)$/i', $color)) {
         return $color;
     }
     if (preg_match('/^[a-zA-Z]{1,40}$/', $color)) {
@@ -246,7 +318,7 @@ const CSS = <<<'CSS'
     height: 100%;
     z-index: 2147483000;
     position: fixed;
-    background-color: var(--devsidebar-color, #000);
+    background-color: var(--devsidebar-bg, #000);
     margin: 0;
     padding: 0;
 }
@@ -256,7 +328,7 @@ const CSS = <<<'CSS'
 
 .devsidebar-text {
     top: 50%;
-    color: #fff;
+    color: var(--devsidebar-fg, #fff);
     padding: 5px;
     margin: 0;
     font-size: 14px;
@@ -268,7 +340,7 @@ const CSS = <<<'CSS'
     text-transform: uppercase;
     border-radius: 0 5px 5px 0;
     transform: perspective(1px) translateY(-50%);
-    background-color: var(--devsidebar-color, #000);
+    background-color: var(--devsidebar-bg, #000);
 }
 
 .devsidebar-text.devsidebar-text-right {
@@ -315,13 +387,13 @@ const CSS = <<<'CSS'
 }
 
 .devsidebar-info:focus-visible {
-    outline: 2px solid #87ff00;
+    outline: 2px solid currentColor;
     outline-offset: 2px;
     border-radius: 2px;
 }
 
 .devsidebar-info svg {
-    fill: #fff;
+    fill: var(--devsidebar-fg, #fff);
     width: 18px;
     height: 18px;
     transition: fill 0.18s, transform 0.18s;

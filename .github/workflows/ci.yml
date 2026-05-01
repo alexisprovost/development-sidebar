@@ -36,7 +36,7 @@ jobs:
           php -l index.php
           php -l bin/build.php
 
-      - name: Smoke render
+      - name: Smoke render (Config object + array both work)
         env:
           EnvType: stg
           TASK_VERSION: v1.2.3
@@ -44,10 +44,12 @@ jobs:
           php -r '
             require "sidebar.php";
             $_SERVER["HTTP_HOST"] = "example.com";
-            $out = \DevelopmentSidebar\render();
+            $out = \DevelopmentSidebar\render(new \DevelopmentSidebar\Config(platform: "gcp"));
             if (!str_contains($out, "v1.2.3")) { fwrite(STDERR, "missing task version\n"); exit(1); }
             if (!str_contains($out, "devsidebar-env-stg")) { fwrite(STDERR, "missing env class\n"); exit(1); }
-            if (!str_contains($out, "var taskVersion=\"v1.2.3\"")) { fwrite(STDERR, "task version not properly JS-escaped\n"); exit(1); }
+            if (!str_contains($out, "GCP")) { fwrite(STDERR, "platform not rendered\n"); exit(1); }
+            $out2 = \DevelopmentSidebar\render(["platform" => "gcp"]);
+            if ($out !== $out2) { fwrite(STDERR, "Config object and equivalent array must produce identical output\n"); exit(1); }
             echo "smoke ok\n";
           '
 
@@ -59,7 +61,7 @@ jobs:
           php -r '
             require "sidebar.php";
             $_SERVER["HTTP_HOST"] = "evil.com";
-            $out = \DevelopmentSidebar\render(["force_show" => true]);
+            $out = \DevelopmentSidebar\render();
             preg_match("~<script[^>]*>(.*?)</script>~s", $out, $m);
             $body = $m[1] ?? "";
             if (preg_match("~</\s*script~i", $body)) { fwrite(STDERR, "premature </script> in script body\n"); exit(1); }
@@ -68,7 +70,7 @@ jobs:
             echo "xss ok\n";
           '
 
-      - name: Color hash determinism
+      - name: OKLCH hash colors are deterministic
         run: |
           php -r '
             require "sidebar.php";
@@ -77,8 +79,20 @@ jobs:
             $a = \DevelopmentSidebar\render();
             $b = \DevelopmentSidebar\render();
             if ($a !== $b) { fwrite(STDERR, "render not deterministic\n"); exit(1); }
-            if (!preg_match("~--devsidebar-color:hsl\(\d+ 70% 42%\)~", $a)) { fwrite(STDERR, "no hash color emitted\n"); exit(1); }
+            if (!preg_match("~--devsidebar-bg:oklch\(0\.58 0\.16 \d+\)~", $a)) { fwrite(STDERR, "no oklch hash bg\n"); exit(1); }
+            if (!str_contains($a, "--devsidebar-fg:#fff")) { fwrite(STDERR, "hash should pair with white text\n"); exit(1); }
             echo "hash ok\n";
+          '
+
+      - name: Auto-contrast text on light user bg
+        run: |
+          php -r '
+            require "sidebar.php";
+            $_SERVER["HTTP_HOST"] = "example.com";
+            $out = \DevelopmentSidebar\render(new \DevelopmentSidebar\Config(environment: "qa", color: "#ffeb3b"));
+            if (!str_contains($out, "--devsidebar-bg:#ffeb3b")) exit(1);
+            if (!str_contains($out, "--devsidebar-fg:#111")) { fwrite(STDERR, "yellow bg should get black text\n"); exit(1); }
+            echo "contrast ok\n";
           '
 
   build:
