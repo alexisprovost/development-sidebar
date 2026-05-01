@@ -1,0 +1,138 @@
+name: CI
+
+on:
+  push:
+    branches: [main, v6]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.3', '8.4', '8.5']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+
+      - name: Validate composer.json
+        run: composer validate --strict --no-check-publish
+
+      - name: Lint
+        run: |
+          php -l sidebar.php
+          php -l index.php
+          php -l bin/build.php
+
+      - name: Smoke render (Config object + array both work)
+        env:
+          EnvType: stg
+          TASK_VERSION: v1.2.3
+        run: |
+          php -r '
+            require "sidebar.php";
+            $_SERVER["HTTP_HOST"] = "example.com";
+            $out = \DevelopmentSidebar\render(new \DevelopmentSidebar\Config(platform: "gcp"));
+            if (!str_contains($out, "v1.2.3")) { fwrite(STDERR, "missing task version\n"); exit(1); }
+            if (!str_contains($out, "devsidebar-env-stg")) { fwrite(STDERR, "missing env class\n"); exit(1); }
+            if (!str_contains($out, "GCP")) { fwrite(STDERR, "platform not rendered\n"); exit(1); }
+            $out2 = \DevelopmentSidebar\render(["platform" => "gcp"]);
+            if ($out !== $out2) { fwrite(STDERR, "Config object and equivalent array must produce identical output\n"); exit(1); }
+            echo "smoke ok\n";
+          '
+
+      - name: XSS probe
+        env:
+          EnvType: 'evil"><script>alert(1)</script>'
+          TASK_VERSION: '</script><img src=x onerror=alert(1)>"; alert(1); var x="'
+        run: |
+          php -r '
+            require "sidebar.php";
+            $_SERVER["HTTP_HOST"] = "evil.com";
+            $out = \DevelopmentSidebar\render();
+            preg_match("~<script[^>]*>(.*?)</script>~s", $out, $m);
+            $body = $m[1] ?? "";
+            if (preg_match("~</\s*script~i", $body)) { fwrite(STDERR, "premature </script> in script body\n"); exit(1); }
+            if (!str_contains($body, "\\u003C")) { fwrite(STDERR, "task version not hex-escaped in JS\n"); exit(1); }
+            if (preg_match("~data-tooltip=\"[^\"]*<~", $out)) { fwrite(STDERR, "raw < inside data-tooltip attr\n"); exit(1); }
+            echo "xss ok\n";
+          '
+
+      - name: OKLCH hash colors are deterministic
+        run: |
+          php -r '
+            require "sidebar.php";
+            $_SERVER["HTTP_HOST"] = "example.com";
+            putenv("EnvType=canary");
+            $a = \DevelopmentSidebar\render();
+            $b = \DevelopmentSidebar\render();
+            if ($a !== $b) { fwrite(STDERR, "render not deterministic\n"); exit(1); }
+            if (!preg_match("~--devsidebar-bg:oklch\(0\.58 0\.16 \d+\)~", $a)) { fwrite(STDERR, "no oklch hash bg\n"); exit(1); }
+            if (!str_contains($a, "--devsidebar-fg:#fff")) { fwrite(STDERR, "hash should pair with white text\n"); exit(1); }
+            echo "hash ok\n";
+          '
+
+      - name: Auto-contrast text on light user bg
+        run: |
+          php -r '
+            require "sidebar.php";
+            $_SERVER["HTTP_HOST"] = "example.com";
+            $out = \DevelopmentSidebar\render(new \DevelopmentSidebar\Config(environment: "qa", color: "#ffeb3b"));
+            if (!str_contains($out, "--devsidebar-bg:#ffeb3b")) exit(1);
+            if (!str_contains($out, "--devsidebar-fg:#111")) { fwrite(STDERR, "yellow bg should get black text\n"); exit(1); }
+            echo "contrast ok\n";
+          '
+
+  build:
+    name: Build single-file artifact
+    needs: test
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+      - name: Build
+        run: |
+          php bin/build.php
+          php -l dist/sidebar.php
+      - name: Smoke test bundled artifact
+        env:
+          EnvType: dev
+          TASK_VERSION: v9.9.9
+        run: |
+          php -r '
+            $_SERVER["HTTP_HOST"] = "example.com";
+            ob_start();
+            include "dist/sidebar.php";
+            $out = ob_get_clean();
+            if (!str_contains($out, "v9.9.9")) { fwrite(STDERR, "bundled missing version\n"); exit(1); }
+            if (!str_contains($out, "devsidebar-env-dev")) { fwrite(STDERR, "bundled missing env class\n"); exit(1); }
+            echo "bundle ok\n";
+          '
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sidebar-bundled
+          path: dist/sidebar.php
+          retention-days: 30
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          files: dist/sidebar.php
+          generate_release_notes: true

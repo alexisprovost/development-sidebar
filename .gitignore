@@ -1,0 +1,9 @@
+/vendor/
+/composer.lock
+/dist/
+/.claude/
+/.idea/
+/.vscode/
+/.DS_Store
+/config.php
+*.log

@@ -1,71 +1,25 @@
 <?php
 
-/**
- * DevelopmentSidebar v5.0
- * Made by Alexis Provost with Google Fonts and Balloon.css
- */
+declare(strict_types=1);
 
-// Config variables
+require_once __DIR__ . '/sidebar.php';
 
-//Platform ex. aws, azure, google cloud
-$barPlatform = "aws";
-//Align the Development Sidebar on the right
-$barRightSide = true;
-//Show the number of website instances
-$bShowNbInstances = true;
-//Force show the Development Sidebar
-$showBar = false;
-//Show the PHP version in the sidebar
-$bShowPhpVersion = true;
-//Show Development Sidebar version
-$bShowSidebarVersion = true;
-//Number of instances
-$bNbInstances = 1;
-//Sidebar Version
-$sidebarVersion = "5.0";
+if (defined('DEVELOPMENT_SIDEBAR_RENDERED')) {
+    return;
+}
+define('DEVELOPMENT_SIDEBAR_RENDERED', true);
 
-//Version TASK_VERSION in the env variables
-$bTaskVersion = getenv('TASK_VERSION');
-
-if ($bTaskVersion == "")
-    $bTaskVersion = "No version was specified in the TASK_VERSION env variable";
-
-//Type of environment (infra,dev,stg)
-$barType = getenv('EnvType');
-
-//Hostname
-$hostname = gethostname();
-if ($bShowNbInstances)
-    $hostname = $hostname . " ( " . $bNbInstances . " )";
-
-
-//Check if the site is run in dev mode (infra,stg,dev)
-if($_SERVER['HTTP_HOST'] == "localhost" || $_SERVER['HTTP_HOST'] == "127.0.0.1" || $bTaskVersion == "local"){
-    $barTypeL = "local";
-} else {
-    $barTypeL = strtolower($barType);
+$opts = [];
+$cfg = __DIR__ . '/config.php';
+if (is_file($cfg)) {
+    $loaded = require $cfg;
+    if (is_array($loaded)) {
+        $opts = $loaded;
+    }
 }
 
-//Hide the bar in prod
-if($barTypeL != "prod")
-    $showBar = true;
-
-//Show the DevelopmentSidebar if wordpress is in debug mode
-if (getenv('WP_DEBUG') == 'true' || $showBar) { ?>
-    <style>/*Style of the sidebar*/.status-bar-0l14JU{top:0;width:6px;height:100%;z-index:1000000;position:fixed;background-color:#000}.is-right-0l14JU{right:0}.status-bar-0l14JU>.text-is-right-0l14JU{right:0;border-top-left-radius:5px;border-bottom-left-radius:5px;border-top-right-radius:0!important;border-bottom-right-radius:0!important}.status-bar-0l14JU>.status-text-0l14JU{top:50%;color:#fff;padding:5px;font-size:14px;font-weight:800;position:absolute;text-align:center;font-family:Poppins,sans-serif;word-break:break-all;text-transform:uppercase;border-top-right-radius:5px;border-bottom-right-radius:5px;transform:perspective(1px) translateY(-50%);background-color:#000}.status-bar-0l14JU>.status-text-0l14JU>.text-holder-0l14JU{letter-spacing:6px;margin-right:-4px}.status-bar-0l14JU>.status-text-0l14JU>.text-holder-0l14JU>div{text-align:center}.status-bar-0l14JU>.no-select-0l14JU{-webkit-touch-callout:none;-webkit-user-select:none;-khtml-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;cursor:default}.status-bar-0l14JU>.no-select-0l14JU:hover{cursor:default}.status-bar-0l14JU>.status-text-0l14JU>.info-icon-0l14JU:after{font-family:Poppins,sans-serif!important}.status-bar-0l14JU>.status-text-0l14JU>.info-icon-0l14JU{font-size: 0px;border-style: none;border-width: 1.5px;text-transform: none;text-align: left;}.status-bar-0l14JU>.status-text-0l14JU>.info-icon-0l14JU:hover{cursor:pointer}.status-bar-0l14JU>.status-text-0l14JU>.text-holder-0l14JU>.spacer-0l14JU{opacity:0;font-size:5px;height:5px}.stg-status-color-0l14JU,.stg-status-color-0l14JU>h3{background-color:#ff851b!important}.infra-status-color-0l14JU,.infra-status-color-0l14JU>h3{background-color:#0074d9!important}.dev-status-color-0l14JU,.dev-status-color-0l14JU>h3{background-color:#ff4136!important}.svg-info-icon-0l14JU{fill:white;width:18px;height:18px}</style>
-    <style>/*Edit of the ballon.css to fix the problem with the aria-label*/:root{--balloon-color:rgba(16, 16, 16, 0.95);--balloon-font-size:12px;--balloon-move:4px}button[balloon-aria-label][data-balloon-pos]{overflow:visible}[balloon-aria-label][data-balloon-pos]{position:relative;cursor:pointer}[balloon-aria-label][data-balloon-pos]:after{opacity:0;pointer-events:none;transition:all .18s ease-out .18s;text-indent:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,'Open Sans','Helvetica Neue',sans-serif;font-weight:400;font-style:normal;text-shadow:none;font-size:var(--balloon-font-size);background:var(--balloon-color);border-radius:2px;color:#fff;content:attr(balloon-aria-label);padding:.5em 1em;position:absolute;white-space:nowrap;z-index:10}[balloon-aria-label][data-balloon-pos]:before{width:0;height:0;border:5px solid transparent;border-top-color:var(--balloon-color);opacity:0;pointer-events:none;transition:all .18s ease-out .18s;content:"";position:absolute;z-index:10}[balloon-aria-label][data-balloon-pos]:hover:after,[balloon-aria-label][data-balloon-pos]:hover:before,[balloon-aria-label][data-balloon-pos]:not([data-balloon-nofocus]):focus:after,[balloon-aria-label][data-balloon-pos]:not([data-balloon-nofocus]):focus:before,[balloon-aria-label][data-balloon-pos][data-balloon-visible]:after,[balloon-aria-label][data-balloon-pos][data-balloon-visible]:before{opacity:1;pointer-events:none}[balloon-aria-label][data-balloon-pos].font-awesome:after{font-family:FontAwesome,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,'Open Sans','Helvetica Neue',sans-serif}[balloon-aria-label][data-balloon-pos][data-balloon-break]:after{white-space:pre}[balloon-aria-label][data-balloon-pos][data-balloon-break][data-balloon-length]:after{white-space:pre-line;word-break:break-word}[balloon-aria-label][data-balloon-pos][data-balloon-blunt]:after,[balloon-aria-label][data-balloon-pos][data-balloon-blunt]:before{transition:none}[balloon-aria-label][data-balloon-pos][data-balloon-pos=up]:after{bottom:100%;left:50%;margin-bottom:10px;transform:translate(-50%,var(--balloon-move));transform-origin:top}[balloon-aria-label][data-balloon-pos][data-balloon-pos=up]:before{bottom:100%;left:50%;transform:translate(-50%,var(--balloon-move));transform-origin:top}[balloon-aria-label][data-balloon-pos][data-balloon-pos=up]:hover:after,[balloon-aria-label][data-balloon-pos][data-balloon-pos=up][data-balloon-visible]:after{transform:translate(-50%,0)}[balloon-aria-label][data-balloon-pos][data-balloon-pos=up]:hover:before,[balloon-aria-label][data-balloon-pos][data-balloon-pos=up][data-balloon-visible]:before{transform:translate(-50%,0)}[balloon-aria-label][data-balloon-pos][data-balloon-pos=up-left]:after{bottom:100%;left:0;margin-bottom:10px;transform:translate(0,var(--balloon-move));transform-origin:top}[balloon-aria-label][data-balloon-pos][data-balloon-pos=up-left]:before{bottom:100%;left:5px;transform:translate(0,var(--balloon-move));transform-origin:top}[balloon-aria-label][data-balloon-pos][data-balloon-pos=up-left]:hover:after,[balloon-aria-label][data-balloon-pos][data-balloon-pos=up-left][data-balloon-visible]:after{transform:translate(0,0)}[balloon-aria-label][data-balloon-pos][data-balloon-pos=up-left]:hover:before,[balloon-aria-label][data-balloon-pos][data-balloon-pos=up-left][data-balloon-visible]:before{transform:translate(0,0)}[balloon-aria-label][data-balloon-pos][data-balloon-pos=up-right]:after{bottom:100%;right:0;margin-bottom:10px;transform:translate(0,var(--balloon-move));transform-origin:top}[balloon-aria-label][data-balloon-pos][data-balloon-pos=up-right]:before{bottom:100%;right:5px;transform:translate(0,var(--balloon-move));transform-origin:top}[balloon-aria-label][data-balloon-pos][data-balloon-pos=up-right]:hover:after,[balloon-aria-label][data-balloon-pos][data-balloon-pos=up-right][data-balloon-visible]:after{transform:translate(0,0)}[balloon-aria-label][data-balloon-pos][data-balloon-pos=up-right]:hover:before,[balloon-aria-label][data-balloon-pos][data-balloon-pos=up-right][data-balloon-visible]:before{transform:translate(0,0)}[balloon-aria-label][data-balloon-pos][data-balloon-pos=down]:after{left:50%;margin-top:10px;top:100%;transform:translate(-50%,calc(var(--balloon-move) * -1))}[balloon-aria-label][data-balloon-pos][data-balloon-pos=down]:before{width:0;height:0;border:5px solid transparent;border-bottom-color:var(--balloon-color);left:50%;top:100%;transform:translate(-50%,calc(var(--balloon-move) * -1))}[balloon-aria-label][data-balloon-pos][data-balloon-pos=down]:hover:after,[balloon-aria-label][data-balloon-pos][data-balloon-pos=down][data-balloon-visible]:after{transform:translate(-50%,0)}[balloon-aria-label][data-balloon-pos][data-balloon-pos=down]:hover:before,[balloon-aria-label][data-balloon-pos][data-balloon-pos=down][data-balloon-visible]:before{transform:translate(-50%,0)}[balloon-aria-label][data-balloon-pos][data-balloon-pos=down-left]:after{left:0;margin-top:10px;top:100%;transform:translate(0,calc(var(--balloon-move) * -1))}[balloon-aria-label][data-balloon-pos][data-balloon-pos=down-left]:before{width:0;height:0;border:5px solid transparent;border-bottom-color:var(--balloon-color);left:5px;top:100%;transform:translate(0,calc(var(--balloon-move) * -1))}[balloon-aria-label][data-balloon-pos][data-balloon-pos=down-left]:hover:after,[balloon-aria-label][data-balloon-pos][data-balloon-pos=down-left][data-balloon-visible]:after{transform:translate(0,0)}[balloon-aria-label][data-balloon-pos][data-balloon-pos=down-left]:hover:before,[balloon-aria-label][data-balloon-pos][data-balloon-pos=down-left][data-balloon-visible]:before{transform:translate(0,0)}[balloon-aria-label][data-balloon-pos][data-balloon-pos=down-right]:after{right:0;margin-top:10px;top:100%;transform:translate(0,calc(var(--balloon-move) * -1))}[balloon-aria-label][data-balloon-pos][data-balloon-pos=down-right]:before{width:0;height:0;border:5px solid transparent;border-bottom-color:var(--balloon-color);right:5px;top:100%;transform:translate(0,calc(var(--balloon-move) * -1))}[balloon-aria-label][data-balloon-pos][data-balloon-pos=down-right]:hover:after,[balloon-aria-label][data-balloon-pos][data-balloon-pos=down-right][data-balloon-visible]:after{transform:translate(0,0)}[balloon-aria-label][data-balloon-pos][data-balloon-pos=down-right]:hover:before,[balloon-aria-label][data-balloon-pos][data-balloon-pos=down-right][data-balloon-visible]:before{transform:translate(0,0)}[balloon-aria-label][data-balloon-pos][data-balloon-pos=left]:after{margin-right:10px;right:100%;top:50%;transform:translate(var(--balloon-move),-50%)}[balloon-aria-label][data-balloon-pos][data-balloon-pos=left]:before{width:0;height:0;border:5px solid transparent;border-left-color:var(--balloon-color);right:100%;top:50%;transform:translate(var(--balloon-move),-50%)}[balloon-aria-label][data-balloon-pos][data-balloon-pos=left]:hover:after,[balloon-aria-label][data-balloon-pos][data-balloon-pos=left][data-balloon-visible]:after{transform:translate(0,-50%)}[balloon-aria-label][data-balloon-pos][data-balloon-pos=left]:hover:before,[balloon-aria-label][data-balloon-pos][data-balloon-pos=left][data-balloon-visible]:before{transform:translate(0,-50%)}[balloon-aria-label][data-balloon-pos][data-balloon-pos=right]:after{left:100%;margin-left:10px;top:50%;transform:translate(calc(var(--balloon-move) * -1),-50%)}[balloon-aria-label][data-balloon-pos][data-balloon-pos=right]:before{width:0;height:0;border:5px solid transparent;border-right-color:var(--balloon-color);left:100%;top:50%;transform:translate(calc(var(--balloon-move) * -1),-50%)}[balloon-aria-label][data-balloon-pos][data-balloon-pos=right]:hover:after,[balloon-aria-label][data-balloon-pos][data-balloon-pos=right][data-balloon-visible]:after{transform:translate(0,-50%)}[balloon-aria-label][data-balloon-pos][data-balloon-pos=right]:hover:before,[balloon-aria-label][data-balloon-pos][data-balloon-pos=right][data-balloon-visible]:before{transform:translate(0,-50%)}[balloon-aria-label][data-balloon-pos][data-balloon-length=small]:after{white-space:normal;width:80px}[balloon-aria-label][data-balloon-pos][data-balloon-length=medium]:after{white-space:normal;width:150px}[balloon-aria-label][data-balloon-pos][data-balloon-length=large]:after{white-space:normal;width:260px}[balloon-aria-label][data-balloon-pos][data-balloon-length=xlarge]:after{white-space:normal;width:380px}@media screen and (max-width:768px){[balloon-aria-label][data-balloon-pos][data-balloon-length=xlarge]:after{white-space:normal;width:90vw}}[balloon-aria-label][data-balloon-pos][data-balloon-length=fit]:after{white-space:normal;width:100%}</style>
-    <div class="status-bar-0l14JU <?php echo $barTypeL; ?>-status-color-0l14JU <?php if($barRightSide){echo "is-right-0l14JU";} ?>">
-        <link href="https://fonts.googleapis.com/css?family=Poppins" rel="stylesheet">
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.7.2/animate.min.css" integrity="sha256-PHcOkPmOshsMBC+vtJdVr5Mwb7r0LkSVJPlPrp/IMpU=" crossorigin="anonymous" />
-        <h3 class="status-text-0l14JU no-select-0l14JU <?php if($barRightSide){echo "text-is-right-0l14JU";} ?>">
-            <div class="text-holder-0l14JU">
-                <?php echo $barTypeL; ?>
-                <div>—</div>
-                <?php echo $barPlatform; ?>
-                <div class="spacer-0l14JU">-</div>
-            </div>
-            <span class="info-icon-0l14JU" balloon-aria-label="Informations&#10;━━━━━━&#10;Task Version: <?php echo $bTaskVersion;?>&#10;&#10;Hostname: <?php if(!is_null($hostname)){ echo $hostname; }?><?php if($bShowPhpVersion){ ?>&#10;&#10;PHP Version: <?php echo phpversion(); }?><?php if($bShowSidebarVersion){echo '&#10;&#10;Sidebar Version: ' . $sidebarVersion;}?>" data-balloon-pos="<?php if($barRightSide){echo "left";}else{echo "right";} ?>" data-balloon-break><svg class="svg-info-icon-0l14JU" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M256 90c44.3 0 86 17.3 117.4 48.6C404.7 170 422 211.7 422 256s-17.3 86-48.6 117.4C342 404.7 300.3 422 256 422s-86-17.3-117.4-48.6C107.3 342 90 300.3 90 256s17.3-86 48.6-117.4C170 107.3 211.7 90 256 90m0-42C141.1 48 48 141.1 48 256s93.1 208 208 208 208-93.1 208-208S370.9 48 256 48z"/><path d="M277 360h-42V235h42v125zm0-166h-42v-42h42v42z"/></svg></span>
-        </h3>
-    </div>
-    <script type="text/javascript">var sideBarInfoIcon=document.querySelector(".info-icon-0l14JU"),sideBarInfoIconSvg=document.querySelector(".svg-info-icon-0l14JU");sideBarInfoIcon.addEventListener("click",function(e){e.preventDefault()},!1),"<?php echo $bTaskVersion;?>"!=localStorage.getItem("taskversion")&&(sideBarInfoIconSvg.style.fill="#87ff00",sideBarInfoIconSvg.classList.add("animated","pulse","infinite")),sideBarInfoIcon.addEventListener("contextmenu",function(e){localStorage.setItem("taskversion","<?php echo $bTaskVersion;?>"),sideBarInfoIconSvg.style.fill="white",sideBarInfoIconSvg.classList.remove("animated","pulse","infinite"),alert("The current version was updated successfully in the local storage."),e.preventDefault()},!1);</script>
-<?php } // End
+try {
+    \DevelopmentSidebar\display($opts);
+} catch (\Throwable) {
+    // Never break the host page.
+}

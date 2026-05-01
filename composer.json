@@ -1,0 +1,18 @@
+{
+    "name": "alexisprovost/development-sidebar",
+    "description": "Tiny single-file PHP sidebar that shows environment metadata on dev / staging / infra deployments. Hidden in prod by default.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["sidebar", "devops", "environment", "staging", "debug"],
+    "authors": [
+        { "name": "Alexis Provost", "homepage": "https://github.com/alexisprovost" }
+    ],
+    "require": {
+        "php": ">=8.2"
+    },
+    "autoload": {
+        "files": ["sidebar.php"]
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
