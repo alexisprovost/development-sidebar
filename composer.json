@@ -1,6 +1,6 @@
 {
     "name": "alexisprovost/development-sidebar",
-    "description": "Tiny single-file PHP sidebar that shows environment metadata on dev / staging / infra deployments. Hidden in prod by default.",
+    "description": "Sidebar that tells you when you're on a dev version of your site and shows information about the development server.",
     "type": "library",
     "license": "MIT",
     "keywords": ["sidebar", "devops", "environment", "staging", "debug"],
