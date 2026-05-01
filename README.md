@@ -19,25 +19,46 @@ php_value auto_append_file "/var/www/sidebar.php"
 
 ### nginx + php-fpm
 
-Pool config (recommended — set once per pool):
+The cleanest pattern across nginx, php-fpm, and shared hosts is a tiny loader file that decides at request time whether to render based on an env var. This keeps your nginx and php-fpm config identical across hosts; the env var (set by systemd, the container, your hosting panel, etc.) flips the bar on or off.
 
-```ini
-; /etc/php/8.4/fpm/pool.d/dev.conf  (only on dev / staging / infra hosts)
-php_value[auto_append_file] = /var/www/sidebar.php
+Drop a file like this next to `sidebar.php`:
+
+```php
+<?php
+// /var/www/devsidebar-loader.php
+$env = strtolower((string) (getenv('APP_ENV') ?: getenv('EnvType') ?: ''));
+if (in_array($env, ['local', 'dev', 'stg', 'staging', 'infra'], true)) {
+    require __DIR__ . '/sidebar.php';
+    \DevelopmentSidebar\display();
+}
 ```
 
-Or per-server in nginx:
+Then point php-fpm or nginx at it:
+
+```ini
+; /etc/php/8.4/fpm/pool.d/www.conf
+env[APP_ENV] = $APP_ENV
+php_value[auto_append_file] = /var/www/devsidebar-loader.php
+```
+
+Or in the nginx server block:
 
 ```nginx
 location ~ \.php$ {
-    fastcgi_param PHP_VALUE "auto_append_file=/var/www/sidebar.php";
+    fastcgi_param PHP_VALUE "auto_append_file=/var/www/devsidebar-loader.php";
+    fastcgi_param APP_ENV   $http_x_app_env;   # or however you propagate it
     # ... usual fastcgi_pass etc.
 }
 ```
 
-### `php.ini` directly
+Set `APP_ENV=dev` on dev hosts, `APP_ENV=stg` on staging, leave it unset (or set to `prod`) on prod, and the bar appears or stays away with no PHP redeploy.
+
+### Static `php.ini` (no env-var gating)
+
+If your hosts are dedicated and you'd rather not gate at all, point `auto_append_file` straight at `sidebar.php` on dev / staging only:
 
 ```ini
+; php.ini on dev / staging hosts only
 auto_append_file = "/var/www/sidebar.php"
 ```
 

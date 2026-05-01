@@ -60,7 +60,7 @@ function render(Config|array|null $config = null): string
 {
     $cfg      = _resolve_config($config);
     $env      = _resolve_environment($cfg);
-    $task     = $cfg->taskVersion ?? 'No version was specified in the TASK_VERSION env variable';
+    $task     = _resolve_task_version($cfg);
     $hostname = _resolve_hostname($cfg);
     [$bg, $fg] = _resolve_color_pair($env, $cfg);
     $tooltip  = _build_tooltip($task, $hostname, $cfg);
@@ -111,27 +111,39 @@ function render(Config|array|null $config = null): string
 
 function _resolve_config(Config|array|null $config): Config
 {
-    if ($config instanceof Config) {
-        return $config;
-    }
-
-    $envDefaults = [];
-    $task = getenv('TASK_VERSION');
-    if (is_string($task) && $task !== '') {
-        $envDefaults['taskVersion'] = $task;
-    }
-    $env = getenv('EnvType');
-    if (!is_string($env) || $env === '') {
-        $env = getenv('ENV_TYPE');
-    }
-    if (is_string($env) && $env !== '') {
-        $envDefaults['environment'] = $env;
-    }
-
-    $merged = ($config ?? []) + $envDefaults;
-    return new Config(...$merged);
+    return match (true) {
+        $config instanceof Config => $config,
+        is_array($config)         => new Config(...$config),
+        default                   => new Config(),
+    };
 }
 
+/**
+ * Returns the task version. Falls back to TASK_VERSION env var when the
+ * Config field is null, then to a placeholder string.
+ */
+function _resolve_task_version(Config $cfg): string
+{
+    if ($cfg->taskVersion !== null) {
+        return $cfg->taskVersion;
+    }
+    $envTask = getenv('TASK_VERSION');
+    if (is_string($envTask) && $envTask !== '') {
+        return $envTask;
+    }
+    return 'No version was specified in the TASK_VERSION env variable';
+}
+
+/**
+ * Returns the resolved env name (always a non-empty lowercase string).
+ *
+ * Resolution order:
+ *   1. localHosts match on the request Host -> 'local'
+ *   2. taskVersion === 'local'             -> 'local'
+ *   3. Config::environment if non-null
+ *   4. EnvType / ENV_TYPE env var
+ *   5. 'unknown'
+ */
 function _resolve_environment(Config $cfg): string
 {
     $host = strtolower((string) ($_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? ''));
@@ -142,7 +154,18 @@ function _resolve_environment(Config $cfg): string
     if (strtolower((string) ($cfg->taskVersion ?? '')) === 'local') {
         return 'local';
     }
-    $env = trim(strtolower((string) ($cfg->environment ?? '')));
+
+    $env = $cfg->environment;
+    if ($env === null) {
+        $envVar = getenv('EnvType');
+        if (!is_string($envVar) || $envVar === '') {
+            $envVar = getenv('ENV_TYPE');
+        }
+        if (is_string($envVar) && $envVar !== '') {
+            $env = $envVar;
+        }
+    }
+    $env = trim(strtolower((string) ($env ?? '')));
     return $env !== '' ? $env : 'unknown';
 }
 
