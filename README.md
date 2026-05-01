@@ -1,6 +1,10 @@
 # development-sidebar
 
 [![CI](https://github.com/alexisprovost/development-sidebar/actions/workflows/ci.yml/badge.svg)](https://github.com/alexisprovost/development-sidebar/actions/workflows/ci.yml)
+[![Latest Version](https://img.shields.io/packagist/v/alexisprovost/development-sidebar.svg)](https://packagist.org/packages/alexisprovost/development-sidebar)
+[![PHP Version](https://img.shields.io/packagist/php-v/alexisprovost/development-sidebar.svg)](https://packagist.org/packages/alexisprovost/development-sidebar)
+[![Downloads](https://img.shields.io/packagist/dt/alexisprovost/development-sidebar.svg)](https://packagist.org/packages/alexisprovost/development-sidebar)
+[![License](https://img.shields.io/packagist/l/alexisprovost/development-sidebar.svg)](LICENSE)
 
 A tiny PHP sidebar that pins the env name, platform, hostname, and build version to the edge of every page on dev / staging / infra. One file. PHP 8.2+. No dependencies.
 
