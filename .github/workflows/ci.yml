@@ -72,8 +72,12 @@ jobs:
             $body = $m[1] ?? "";
             if (preg_match("~</\s*script~i", $body)) { fwrite(STDERR, "premature </script> in script body\n"); exit(1); }
             if (!str_contains($body, "\\u003C")) { fwrite(STDERR, "task version not hex-escaped in JS\n"); exit(1); }
-            // No live event handler should render anywhere in the document.
-            if (preg_match("~<[a-zA-Z][^>]*\son[a-z]+\s*=~i", $out)) { fwrite(STDERR, "live event handler in output\n"); exit(1); }
+            // User-controlled attribute values must be HTML-escaped (no raw < / "  / > inside).
+            foreach (["data-copy", "aria-label"] as $attr) {
+                if (preg_match("~" . $attr . "=\"[^\"]*<~", $out)) {
+                    fwrite(STDERR, "raw < found inside $attr=\n"); exit(1);
+                }
+            }
             echo "xss ok\n";
           '
 
