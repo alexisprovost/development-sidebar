@@ -1,5 +1,7 @@
 # DevelopmentSidebar
 
+[![CI](https://github.com/alexisprovost/DevelopmentSidebar/actions/workflows/ci.yml/badge.svg)](https://github.com/alexisprovost/DevelopmentSidebar/actions/workflows/ci.yml)
+
 A tiny PHP sidebar that shows environment metadata (env name, platform,
 hostname, task version, PHP version) on dev / staging / infra deployments.
 Hidden in prod by default.
