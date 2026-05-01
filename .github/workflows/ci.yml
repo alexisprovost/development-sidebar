@@ -126,7 +126,7 @@ jobs:
             if (!str_contains($out, "devsidebar-env-dev")) { fwrite(STDERR, "bundled missing env class\n"); exit(1); }
             echo "bundle ok\n";
           '
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: sidebar-bundled
           path: dist/sidebar.php
